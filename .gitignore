@@ -1,8 +1,12 @@
 .snaga/
+.cache/
+.npm/
+__pycache__/
+*.pyc
+node_modules/
 .bash_history
 .bash_logout
 .bashrc
 .profile
 .config/
 .sudo_as_admin_successful
-node_modules/
