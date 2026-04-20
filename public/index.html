@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Huragan Production — Let Your Story Be Really Seen</title>
+    <meta name="description" content="Huragan Production — Creative video studio. Commercials, music videos, documentaries. Let your story be really seen.">
     <link rel="stylesheet" href="styles.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -12,7 +13,9 @@
     <!-- Preloader -->
     <div class="preloader" id="preloader">
         <div class="preloader-inner">
-            <div class="preloader-logo">HURAGAN PRODUCTION</div>
+            <div class="preloader-logo">
+                <span class="preloader-icon">⚡</span> HURAGAN PRODUCTION
+            </div>
             <div class="preloader-bar"><div class="preloader-progress" id="preloaderProgress"></div></div>
             <div class="preloader-percent" id="preloaderPercent">0%</div>
         </div>
@@ -22,18 +25,21 @@
     <div class="cursor" id="cursor"></div>
     <div class="cursor-follower" id="cursorFollower"></div>
 
+    <!-- Animated Background Texture -->
+    <canvas id="bgCanvas" class="bg-canvas"></canvas>
+
     <!-- Navigation -->
     <nav class="nav" id="nav">
         <div class="nav-inner container">
             <a href="#" class="nav-logo">
-                <span class="nav-logo-mark">H</span>
-                <span class="nav-logo-text">HURAGAN PRODUCTION</span>
+                <span class="nav-logo-mark">⚡</span>
+                <span class="nav-logo-text">Huragan Production</span>
             </a>
             <div class="nav-links" id="navLinks">
-                <a href="#work" class="nav-link" data-text="Work">Work</a>
-                <a href="#services" class="nav-link" data-text="Services">Services</a>
-                <a href="#about" class="nav-link" data-text="About">About</a>
-                <a href="#contact" class="nav-link" data-text="Contact">Contact</a>
+                <a href="#work" class="nav-link">Work</a>
+                <a href="#services" class="nav-link">Services</a>
+                <a href="#about" class="nav-link">About</a>
+                <a href="#contact" class="nav-link">Contact</a>
             </div>
             <a href="#contact" class="nav-cta">Start a Project</a>
             <button class="nav-burger" id="navBurger" aria-label="Menu">
@@ -57,7 +63,11 @@
     <section class="hero" id="hero">
         <div class="hero-video-wrap">
             <div class="hero-video-overlay"></div>
-            <div class="hero-video-placeholder" id="heroVideo"></div>
+            <div class="hero-video-placeholder" id="heroVideo">
+                <video autoplay muted loop playsinline class="hero-bg-video" poster="https://images.unsplash.com/photo-1492691527719-9d1e077f3234?w=1920&q=80">
+                    <source src="https://cdn.coverr.co/videos/coverr-filming-a-movie-5765/1080p.mp4" type="video/mp4">
+                </video>
+            </div>
         </div>
         <div class="container hero-content">
             <div class="hero-tag reveal">HURAGAN PRODUCTION</div>
@@ -66,7 +76,7 @@
                 <span class="hero-line reveal"><span class="hero-word accent">be really</span></span>
                 <span class="hero-line reveal"><span class="hero-word">seen</span></span>
             </h1>
-            <p class="hero-desc reveal">Let your story be really seen. We bring your vision to life with energy, precision, and unstoppable creativity.</p>
+            <p class="hero-desc reveal">We bring your vision to life with energy, precision, and unstoppable creativity.</p>
             <div class="hero-actions reveal">
                 <a href="#work" class="btn btn-primary">Explore Our Work</a>
                 <a href="#contact" class="btn btn-ghost">Let's Talk</a>
@@ -81,30 +91,18 @@
     <!-- Marquee -->
     <div class="marquee">
         <div class="marquee-track">
-            <span class="marquee-item">VIDEO PRODUCTION</span>
-            <span class="marquee-dot">◆</span>
-            <span class="marquee-item">MOTION DESIGN</span>
-            <span class="marquee-dot">◆</span>
-            <span class="marquee-item">COMMERCIALS</span>
-            <span class="marquee-dot">◆</span>
-            <span class="marquee-item">MUSIC VIDEOS</span>
-            <span class="marquee-dot">◆</span>
-            <span class="marquee-item">DOCUMENTARIES</span>
-            <span class="marquee-dot">◆</span>
-            <span class="marquee-item">LIVE STREAMING</span>
-            <span class="marquee-dot">◆</span>
-            <span class="marquee-item">VIDEO PRODUCTION</span>
-            <span class="marquee-dot">◆</span>
-            <span class="marquee-item">MOTION DESIGN</span>
-            <span class="marquee-dot">◆</span>
-            <span class="marquee-item">COMMERCIALS</span>
-            <span class="marquee-dot">◆</span>
-            <span class="marquee-item">MUSIC VIDEOS</span>
-            <span class="marquee-dot">◆</span>
-            <span class="marquee-item">DOCUMENTARIES</span>
-            <span class="marquee-dot">◆</span>
-            <span class="marquee-item">LIVE STREAMING</span>
-            <span class="marquee-dot">◆</span>
+            <span class="marquee-item">VIDEO PRODUCTION</span><span class="marquee-dot">◆</span>
+            <span class="marquee-item">MOTION DESIGN</span><span class="marquee-dot">◆</span>
+            <span class="marquee-item">COMMERCIALS</span><span class="marquee-dot">◆</span>
+            <span class="marquee-item">MUSIC VIDEOS</span><span class="marquee-dot">◆</span>
+            <span class="marquee-item">DOCUMENTARIES</span><span class="marquee-dot">◆</span>
+            <span class="marquee-item">LIVE STREAMING</span><span class="marquee-dot">◆</span>
+            <span class="marquee-item">VIDEO PRODUCTION</span><span class="marquee-dot">◆</span>
+            <span class="marquee-item">MOTION DESIGN</span><span class="marquee-dot">◆</span>
+            <span class="marquee-item">COMMERCIALS</span><span class="marquee-dot">◆</span>
+            <span class="marquee-item">MUSIC VIDEOS</span><span class="marquee-dot">◆</span>
+            <span class="marquee-item">DOCUMENTARIES</span><span class="marquee-dot">◆</span>
+            <span class="marquee-item">LIVE STREAMING</span><span class="marquee-dot">◆</span>
         </div>
     </div>
 
@@ -124,7 +122,8 @@
             </div>
             <div class="work-grid">
                 <div class="work-item" data-category="commercial">
-                    <div class="work-thumb" style="background:linear-gradient(135deg,#6C5CE7,#a29bfe)">
+                    <div class="work-thumb">
+                        <img src="https://images.unsplash.com/photo-1536240478700-b869070f9279?w=800&q=80" alt="Commercial production" loading="lazy">
                         <div class="work-play">▶</div>
                         <div class="work-info">
                             <span class="work-cat">Commercial</span>
@@ -133,7 +132,8 @@
                     </div>
                 </div>
                 <div class="work-item wide" data-category="music">
-                    <div class="work-thumb" style="background:linear-gradient(135deg,#00CEC9,#55efc4)">
+                    <div class="work-thumb">
+                        <img src="https://images.unsplash.com/photo-1493225457124-a1c2560a20c4?w=1200&q=80" alt="Music video production" loading="lazy">
                         <div class="work-play">▶</div>
                         <div class="work-info">
                             <span class="work-cat">Music Video</span>
@@ -142,7 +142,8 @@
                     </div>
                 </div>
                 <div class="work-item" data-category="corporate">
-                    <div class="work-thumb" style="background:linear-gradient(135deg,#FD79A8,#e84393)">
+                    <div class="work-thumb">
+                        <img src="https://images.unsplash.com/photo-1574717024521-2c0c3c3a8a7d?w=800&q=80" alt="Corporate video" loading="lazy">
                         <div class="work-play">▶</div>
                         <div class="work-info">
                             <span class="work-cat">Corporate</span>
@@ -151,7 +152,8 @@
                     </div>
                 </div>
                 <div class="work-item" data-category="documentary">
-                    <div class="work-thumb" style="background:linear-gradient(135deg,#FDCB6E,#f39c12)">
+                    <div class="work-thumb">
+                        <img src="https://images.unsplash.com/photo-1504384308090-c894fd4850fc?w=800&q=80" alt="Documentary filming" loading="lazy">
                         <div class="work-play">▶</div>
                         <div class="work-info">
                             <span class="work-cat">Documentary</span>
@@ -160,7 +162,8 @@
                     </div>
                 </div>
                 <div class="work-item wide" data-category="commercial">
-                    <div class="work-thumb" style="background:linear-gradient(135deg,#E17055,#d63031)">
+                    <div class="work-thumb">
+                        <img src="https://images.unsplash.com/photo-1469371670807-013ccf25f16b?w=1200&q=80" alt="Fashion promo" loading="lazy">
                         <div class="work-play">▶</div>
                         <div class="work-info">
                             <span class="work-cat">Commercial</span>
@@ -169,7 +172,8 @@
                     </div>
                 </div>
                 <div class="work-item" data-category="music">
-                    <div class="work-thumb" style="background:linear-gradient(135deg,#74b9ff,#0984e3)">
+                    <div class="work-thumb">
+                        <img src="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=800&q=80" alt="Music production" loading="lazy">
                         <div class="work-play">▶</div>
                         <div class="work-info">
                             <span class="work-cat">Music Video</span>
@@ -238,6 +242,13 @@
                     <h2 class="section-title reveal">We don't just shoot video.<br><span class="accent">We create impact.</span></h2>
                     <p class="about-text reveal">Huragan Production is a team of creators, dreamers, and storytellers. We live for the shot that gives you chills. The edit that makes you rewind. The story that stays with you.</p>
                     <p class="about-text reveal">From high-energy commercials to cinematic music videos — we bring the fire.</p>
+                    <div class="about-showreel reveal">
+                        <img src="https://images.unsplash.com/photo-1574375927938-d5a98e8d7e28?w=800&q=80" alt="Behind the scenes" loading="lazy">
+                        <div class="showreel-overlay">
+                            <div class="play-ring">▶</div>
+                            <span>Watch Showreel</span>
+                        </div>
+                    </div>
                 </div>
                 <div class="about-right">
                     <div class="stats-grid">
@@ -311,26 +322,22 @@
                 <div class="contact-details">
                     <div class="contact-card reveal">
                         <span class="contact-card-icon">📍</span>
-                        <h4>Location</h4>
-                        <p>Kyiv, Ukraine</p>
+                        <div><h4>Location</h4><p>Kyiv, Ukraine</p></div>
                     </div>
                     <div class="contact-card reveal">
                         <span class="contact-card-icon">📧</span>
-                        <h4>Email</h4>
-                        <p>huragan.production@gmail.com</p>
+                        <div><h4>Email</h4><p>huragan.production@gmail.com</p></div>
                     </div>
                     <div class="contact-card reveal">
                         <span class="contact-card-icon">📱</span>
-                        <h4>Instagram</h4>
-                        <p>@huragan.production</p>
+                        <div><h4>Instagram</h4><p>@huragan.production</p></div>
                     </div>
                     <div class="contact-card reveal">
                         <span class="contact-card-icon">🕐</span>
-                        <h4>Working Hours</h4>
-                        <p>Mon–Fri: 9:00 AM — 6:00 PM</p>
+                        <div><h4>Working Hours</h4><p>Mon–Fri: 9:00 AM — 6:00 PM</p></div>
                     </div>
                     <div class="contact-socials reveal">
-                        <a href="https://www.instagram.com/huragan.production/" target="_blank" class="social-btn">Instagram</a>
+                        <a href="https://www.instagram.com/huragan.production/" target="_blank" rel="noreferrer" class="social-btn">Instagram</a>
                         <a href="#" class="social-btn">YouTube</a>
                         <a href="#" class="social-btn">TikTok</a>
                     </div>
@@ -343,8 +350,8 @@
     <footer class="footer">
         <div class="container footer-inner">
             <div class="footer-brand">
-                <span class="nav-logo-mark">H</span>
-                <span class="nav-logo-text">HURAGAN PRODUCTION</span>
+                <span class="nav-logo-mark">⚡</span>
+                <span class="nav-logo-text">Huragan Production</span>
             </div>
             <div class="footer-links">
                 <a href="#work">Work</a>

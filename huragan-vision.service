@@ -1,0 +1,17 @@
+[Unit]
+Description=Huragan Vision - Motion Detection System
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=server
+WorkingDirectory=/home/server
+ExecStart=/usr/bin/python3 /home/server/vision.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

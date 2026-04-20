@@ -10,3 +10,19 @@ node_modules/
 .profile
 .config/
 .sudo_as_admin_successful
+
+# SSH keys
+.ssh/
+
+# Motion detection media files (too large for git)
+public/motion/clips/*.mp4
+public/motion/snapshots/*.jpg
+public/motion/motion_log.json
+
+# Temporary/fix scripts
+fix_*.py
+*.swp
+.wget-hsts
+
+# Vision repo backup
+vision-repo
