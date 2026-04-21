@@ -3,7 +3,7 @@
 Huragan Vision — Motion Detection & Video Clip System
 - RTSP camera connection with auto-reconnect
 - Motion detection with OpenCV
-- 5-second H.264 video clips on motion trigger (via ffmpeg)
+- 15-second H.264 video clips on motion trigger (via ffmpeg)
 - Snapshot gallery
 - Video gallery with playback
 - Telegram notifications with video
@@ -37,7 +37,7 @@ MIN_CONTOUR_AREA = 500
 MOTION_THRESHOLD = 25
 MIN_MOTION_FRAMES = 5
 COOLDOWN_SECONDS = 10
-CLIP_DURATION = 5
+CLIP_DURATION = 15
 CLIP_FPS = 20
 SAVE_DIR = "/home/server/public/motion"
 SNAPSHOT_DIR = f"{SAVE_DIR}/snapshots"
