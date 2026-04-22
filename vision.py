@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-Huragan Vision — Motion Detection & Video Clip System
+Huragan Vision — Motion Detection & Object Recognition System
 - RTSP camera connection with auto-reconnect
 - Motion detection with OpenCV
+- YOLOv8 object detection (every N frames for RPi performance)
 - 15-second H.264 video clips on motion trigger (via ffmpeg)
 - Snapshot gallery
 - Video gallery with playback
@@ -26,6 +27,8 @@ from datetime import datetime
 from pathlib import Path
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from socketserver import ThreadingMixIn
+from collections import Counter
+from ultralytics import YOLO
 
 # ===== Config =====
 CAMERA_LOCAL_IP = "192.168.1.201"
@@ -43,6 +46,11 @@ SAVE_DIR = "/home/server/public/motion"
 SNAPSHOT_DIR = f"{SAVE_DIR}/snapshots"
 CLIP_DIR = f"{SAVE_DIR}/clips"
 
+# ===== YOLO Config =====
+YOLO_ENABLED = True
+YOLO_INTERVAL = 5       # run detection every N frames
+YOLO_CONF = 0.4         # confidence threshold
+
 # ===== Notification Config =====
 TELEGRAM_BOT_TOKEN = "7999393924:AAFmq2ErCf5TqJ4XuV0h0hwYPEFmb6Y0P0M"
 TELEGRAM_CHAT_ID = "126469825"
@@ -51,6 +59,17 @@ NOTIFY_EMAIL = False
 
 for d in [SAVE_DIR, SNAPSHOT_DIR, CLIP_DIR]:
     Path(d).mkdir(parents=True, exist_ok=True)
+
+
+# ===== Load YOLO model =====
+yolo_model = None
+if YOLO_ENABLED:
+    try:
+        yolo_model = YOLO("yolov8n.pt")
+        print(f"[YOLO] Loaded yolov8n - {len(yolo_model.names)} classes")
+    except Exception as e:
+        print(f"[YOLO] Failed to load: {e}")
+        yolo_model = None
 
 
 # ===== Telegram Notifier =====
@@ -101,12 +120,10 @@ class TelegramNotifier:
                     return True
                 else:
                     print(f"[TELEGRAM] Video failed: {result.get('description')}")
-                    # Fallback to snapshot
                     if snapshot_path and os.path.exists(snapshot_path):
                         return self.send_photo(text, snapshot_path)
             elif snapshot_path and os.path.exists(snapshot_path):
                 return self.send_photo(text, snapshot_path)
-            # Text fallback
             return self.send_text(text)
         except Exception as e:
             print(f"[TELEGRAM] Error: {e}")
@@ -186,6 +203,10 @@ class MotionDetector:
         self.buffer_size = CLIP_FPS * (CLIP_DURATION + 1)
         self.camera_connected = False
         self.last_snapshot_path = None
+        # YOLO detection
+        self.yolo_frame_count = 0
+        self.detected_objects = []
+        self.detection_labels = []
 
     def process_frame(self, frame):
         self.camera_connected = True
@@ -194,6 +215,35 @@ class MotionDetector:
         self.frame_buffer.append(frame.copy())
         if len(self.frame_buffer) > self.buffer_size:
             self.frame_buffer.pop(0)
+
+        # ===== YOLO Object Detection =====
+        if YOLO_ENABLED and yolo_model is not None:
+            self.yolo_frame_count += 1
+            if self.yolo_frame_count >= YOLO_INTERVAL:
+                self.yolo_frame_count = 0
+                try:
+                    results = yolo_model(frame, conf=YOLO_CONF, verbose=False)
+                    self.detected_objects = []
+                    for r in results:
+                        for box in r.boxes:
+                            cls_id = int(box.cls[0])
+                            conf = float(box.conf[0])
+                            x1, y1, x2, y2 = box.xyxy[0].tolist()
+                            label = yolo_model.names.get(cls_id, str(cls_id))
+                            self.detected_objects.append({
+                                "class": label,
+                                "conf": round(conf, 2),
+                                "box": [int(x1), int(y1), int(x2 - x1), int(y2 - y1)]
+                            })
+                            # Draw bounding box
+                            cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (255, 165, 0), 2)
+                            cv2.putText(frame, f"{label} {conf:.0%}", (int(x1), int(y1) - 10),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 165, 0), 2)
+                    # Build summary
+                    counts = Counter(o["class"] for o in self.detected_objects)
+                    self.detection_labels = [{"class": c, "count": n} for c, n in counts.most_common(10)]
+                except Exception as e:
+                    print(f"[YOLO] Error: {e}")
 
         if not self.enabled:
             self._draw_hud(frame)
@@ -239,7 +289,7 @@ class MotionDetector:
 
         now = time.time()
         significant_motion = (self.motion_count >= MIN_MOTION_FRAMES and
-                             now - self.last_alert_time > COOLDOWN_SECONDS)
+                              now - self.last_alert_time > COOLDOWN_SECONDS)
 
         if significant_motion:
             self.last_alert_time = now
@@ -273,6 +323,12 @@ class MotionDetector:
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
         else:
             cv2.circle(frame, (w - 30, 25), 8, (0, 200, 0), -1)
+
+        # YOLO objects count in HUD
+        if self.detection_labels:
+            obj_text = " | ".join(f"{d['class']}({d['count']})" for d in self.detection_labels[:5])
+            cv2.putText(frame, obj_text, (15, h - 40),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 165, 0), 1)
 
         bar_w, bar_h = 150, 12
         bar_x, bar_y = w - bar_w - 15, h - 25
@@ -312,7 +368,7 @@ class MotionDetector:
         pre_frames = self.frame_buffer[-CLIP_FPS:]
         self.record_frames = list(pre_frames)
         self._log_event("recording_started", self.motion_level)
-        print("[REC] Started 5-sec clip recording")
+        print("[REC] Started 15-sec clip recording")
 
     def _stop_recording(self):
         if not self.record_frames:
@@ -339,15 +395,12 @@ class MotionDetector:
             ], capture_output=True, timeout=30)
 
             if result.returncode != 0:
-                print(f"[REC] ffmpeg error, trying fallback...")
                 result2 = subprocess.run([
                     'ffmpeg', '-y', '-framerate', str(CLIP_FPS),
                     '-i', os.path.join(tmpdir, 'frame_%06d.jpg'),
                     '-c:v', 'libx264', '-pix_fmt', 'yuv420p',
                     output_path
                 ], capture_output=True, timeout=30)
-                if result2.returncode != 0:
-                    print(f"[REC] ffmpeg fallback failed")
 
             if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
                 actual_duration = len(self.record_frames) / CLIP_FPS
@@ -365,7 +418,11 @@ class MotionDetector:
                 if NOTIFY_TELEGRAM:
                     snap = self.last_snapshot_path if self.last_snapshot_path and os.path.exists(self.last_snapshot_path) else None
                     ts_text = datetime.now().strftime("%H:%M:%S")
-                    text = f"⚡ Motion Detected!\nLevel: {self.motion_level}%\nTime: {ts_text}"
+                    # Include detected objects in notification
+                    obj_text = ""
+                    if self.detection_labels:
+                        obj_text = "\nObjects: " + ", ".join(f"{d['class']}({d['count']})" for d in self.detection_labels[:5])
+                    text = f"⚡ Motion Detected!\nLevel: {self.motion_level}%\nTime: {ts_text}{obj_text}"
                     threading.Thread(
                         target=notifier.send_video,
                         args=(text, output_path, snap),
@@ -422,6 +479,9 @@ class MotionDetector:
             "recording_remaining": round(max(0, CLIP_DURATION - recording_elapsed), 1),
             "clip_duration": CLIP_DURATION,
             "camera_connected": self.camera_connected,
+            "yolo_enabled": YOLO_ENABLED and yolo_model is not None,
+            "detected_objects": self.detected_objects,
+            "detection_labels": self.detection_labels,
             "events": self.events[-30:],
             "snapshots": self.snapshots[-10:],
             "clips": self.clips[-10:]
@@ -632,6 +692,7 @@ body{background:#000;color:#fff;font-family:'Inter',system-ui,sans-serif;overflo
 .stat-value{font-size:1.8rem;font-weight:900;color:#fff}
 .stat-value.orange{color:#FF6A00}
 .stat-value.green{color:#0f0}
+.stat-value.blue{color:#00aaff}
 .stat-label{font-size:0.65rem;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px;margin-top:4px}
 .controls{display:flex;flex-direction:column;gap:12px}
 .btn{padding:12px 20px;border-radius:12px;border:none;font-weight:700;font-size:0.8rem;cursor:pointer;text-transform:uppercase;letter-spacing:1px;transition:all 0.3s;font-family:inherit}
@@ -677,6 +738,12 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
 .video-modal video{max-width:90%;max-height:90%;border-radius:16px;box-shadow:0 0 60px rgba(255,106,0,0.2)}
 .video-modal-close{position:absolute;top:20px;right:20px;background:rgba(255,255,255,0.1);border:none;color:#fff;font-size:1.5rem;cursor:pointer;width:48px;height:48px;border-radius:50%;transition:all 0.3s}
 .video-modal-close:hover{background:rgba(255,106,0,0.3)}
+.detection-card{background:#111;border:1px solid rgba(255,165,0,0.2);border-radius:16px;padding:20px}
+.det-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.det-item{background:#0a0a0a;border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center}
+.det-class{color:#FF6A00;font-weight:700;font-size:0.85rem}
+.det-count{color:#fff;font-weight:900;font-size:1.2rem}
+.det-empty{color:rgba(255,255,255,0.3);font-size:0.8rem;text-align:center;padding:12px}
 @media(max-width:900px){.main{grid-template-columns:1fr;grid-template-rows:50vh auto}.side-panel{border-left:none;border-top:1px solid rgba(255,255,255,0.06)}}
 </style>
 </head>
@@ -709,18 +776,24 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
         <div class="stat-item"><div class="stat-value orange" id="fpsVal">0</div><div class="stat-label">FPS</div></div>
         <div class="stat-item"><div class="stat-value" id="motionVal">0%</div><div class="stat-label">Motion</div></div>
         <div class="stat-item"><div class="stat-value green" id="eventsVal">0</div><div class="stat-label">Events</div></div>
-        <div class="stat-item"><div class="stat-value" id="clipsVal">0</div><div class="stat-label">Clips</div></div>
+        <div class="stat-item"><div class="stat-value blue" id="objectsVal">0</div><div class="stat-label">Objects</div></div>
+      </div>
+    </div>
+    <div class="detection-card">
+      <div class="card-title">🔍 Detected Objects</div>
+      <div class="det-grid" id="detGrid">
+        <div class="det-empty">No objects detected</div>
       </div>
     </div>
     <div class="rec-indicator" id="recIndicator">
       <span class="rec-dot"></span><span class="rec-text">RECORDING</span>
-      <div class="rec-timer" id="recTimer">5.0s remaining</div>
+      <div class="rec-timer" id="recTimer">15.0s remaining</div>
     </div>
     <div class="card">
       <div class="card-title">Controls</div>
       <div class="controls">
         <div class="btn-row">
-          <button class="btn btn-primary" onclick="manualRecord()">🎬 Record 5s</button>
+          <button class="btn btn-primary" onclick="manualRecord()">🎬 Record 15s</button>
           <button class="btn btn-outline" onclick="takeSnapshot()">📸 Snapshot</button>
         </div>
         <div class="btn-row">
@@ -767,18 +840,23 @@ async function updateStatus(){
     document.getElementById('fpsVal').textContent=d.fps;
     document.getElementById('motionVal').textContent=d.motion_level+'%';
     document.getElementById('eventsVal').textContent=d.events_count;
-    document.getElementById('clipsVal').textContent=d.clips_count;
-    const fill=document.getElementById('motionFill');
-    fill.style.width=d.motion_level+'%';
-    fill.style.background=d.motion_level<30?'#0f0':d.motion_level<70?'#FF6A00':'#f00';
-    document.getElementById('motionText').textContent=d.motion_level+'%';
+    const totalObj=d.detection_labels?d.detection_labels.reduce((s,o)=>s+o.count,0):0;
+    document.getElementById('objectsVal').textContent=totalObj;
     document.getElementById('sensSlider').value=d.sensitivity;
     document.getElementById('sensVal').textContent=d.sensitivity+'%';
     document.getElementById('toggleBtn').textContent=d.enabled?'⏸ Pause':'▶ Resume';
     document.getElementById('toggleBtn').className=d.enabled?'btn btn-outline':'btn btn-primary';
+    const fill=document.getElementById('motionFill');
+    fill.style.width=d.motion_level+'%';
+    fill.style.background=d.motion_level<30?'#0f0':d.motion_level<70?'#FF6A00':'#f00';
+    document.getElementById('motionText').textContent=d.motion_level+'%';
     const recInd=document.getElementById('recIndicator');
     if(d.is_recording){recInd.classList.add('active');document.getElementById('recTimer').textContent=d.recording_remaining.toFixed(1)+'s remaining';}
     else{recInd.classList.remove('active');}
+    // Detection labels
+    const dg=document.getElementById('detGrid');
+    if(d.detection_labels&&d.detection_labels.length){dg.innerHTML=d.detection_labels.map(o=>'<div class="det-item"><span class="det-class">'+o.class+'</span><span class="det-count">'+o.count+'</span></div>').join('');}
+    else{dg.innerHTML='<div class="det-empty">No objects detected</div>';}
     const el=document.getElementById('eventsList');
     if(d.events.length){el.innerHTML=d.events.slice(-10).reverse().map(e=>'<div class="event"><div class="time">'+new Date(e.time).toLocaleTimeString()+'</div><div class="type">'+e.type.replace(/_/g,' ')+'</div>'+(e.motion_level?'<div class="level">Level: '+e.motion_level+'%</div>':'')+(e.duration?'<div class="level">Duration: '+e.duration+'s</div>':'')+'</div>').join('');}
     else{el.innerHTML='<div style="color:rgba(255,255,255,0.3);font-size:0.8rem">No events yet</div>';}
@@ -866,10 +944,11 @@ def capture_loop():
 # ===== Main =====
 def main():
     print("=" * 50)
-    print("HURAGAN VISION - Motion Detection System")
+    print("HURAGAN VISION - Motion & Object Detection")
     print("=" * 50)
     print(f"Dashboard: http://0.0.0.0:{DASHBOARD_PORT}")
     print(f"Clip duration: {CLIP_DURATION}s on motion trigger")
+    print(f"YOLO detection: {'ON' if yolo_model else 'OFF'} (every {YOLO_INTERVAL} frames)")
     print(f"Telegram notifications: {'ON' if NOTIFY_TELEGRAM else 'OFF'}")
     print("=" * 50)
 

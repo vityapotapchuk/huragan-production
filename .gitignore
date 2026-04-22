@@ -14,13 +14,21 @@ node_modules/
 # SSH keys
 .ssh/
 
+# Python user packages (pip --user)
+.local/
+
 # Motion detection media files (too large for git)
 public/motion/clips/*.mp4
 public/motion/snapshots/*.jpg
 public/motion/motion_log.json
 
+# YOLO model weights (large binary)
+*.pt
+models/
+
 # Temporary/fix scripts
 fix_*.py
+tv_*.py
 *.swp
 .wget-hsts
 
