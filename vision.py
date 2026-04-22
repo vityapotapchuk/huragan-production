@@ -418,11 +418,15 @@ class MotionDetector:
                 if NOTIFY_TELEGRAM:
                     snap = self.last_snapshot_path if self.last_snapshot_path and os.path.exists(self.last_snapshot_path) else None
                     ts_text = datetime.now().strftime("%H:%M:%S")
-                    # Include detected objects in notification
-                    obj_text = ""
+                    # Build object description for Telegram
+                    obj_summary = ""
+                    obj_detail = ""
                     if self.detection_labels:
-                        obj_text = "\nObjects: " + ", ".join(f"{d['class']}({d['count']})" for d in self.detection_labels[:5])
-                    text = f"⚡ Motion Detected!\nLevel: {self.motion_level}%\nTime: {ts_text}{obj_text}"
+                        obj_summary = ", ".join(f'{d["class"]}({d["count"]})' for d in self.detection_labels[:5])
+                        obj_detail = "\n".join(f'  • {o["class"]} ({o["conf"]*100:.0f}%)' for o in self.detected_objects[:8])
+                    text = f'⚡ Рух виявлено!\nРівень: {self.motion_level}%\nЧас: {ts_text}'
+                    if obj_summary:
+                        text += f'\n\n🔍 Об\'єкти: {obj_summary}\n{obj_detail}'
                     threading.Thread(
                         target=notifier.send_video,
                         args=(text, output_path, snap),
@@ -500,7 +504,7 @@ class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path in ('/', '/dashboard'):
-            self._send_html(DASHBOARD_HTML)
+            self._send_html_file()
         elif self.path == '/stream':
             self._serve_mjpeg()
         elif self.path == '/api/status':
@@ -571,9 +575,14 @@ class Handler(BaseHTTPRequestHandler):
             return json.loads(self.rfile.read(length))
         return {}
 
-    def _send_html(self, html):
+    def _send_html_file(self):
+        try:
+            with open(DASHBOARD_HTML_PATH, "r") as f:
+                html = f.read()
+        except Exception:
+            html = "<h1>Dashboard not found</h1>"
         self.send_response(200)
-        self.send_header('Content-type', 'text/html')
+        self.send_header("Content-type", "text/html")
         self.end_headers()
         self.wfile.write(html.encode())
 
@@ -658,230 +667,10 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
 
-# ===== Dashboard HTML =====
-DASHBOARD_HTML = r"""<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Huragan Vision</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{background:#000;color:#fff;font-family:'Inter',system-ui,sans-serif;overflow-x:hidden}
-.header{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(0,0,0,0.92);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,106,0,0.2);padding:12px 24px;display:flex;align-items:center;justify-content:space-between}
-.logo{font-size:1.2rem;font-weight:900;color:#FF6A00;letter-spacing:3px;text-transform:uppercase}
-.header-status{display:flex;align-items:center;gap:12px}
-.status-dot{width:10px;height:10px;border-radius:50%;display:inline-block}
-.status-dot.on{background:#0f0;box-shadow:0 0 10px #0f0}
-.status-dot.rec{background:#f00;box-shadow:0 0 10px #f00;animation:pulse 1s infinite}
-.status-dot.off{background:#666}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
-.status-text{font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:1px}
-.main{padding-top:70px;display:grid;grid-template-columns:1fr 380px;gap:0;height:100vh}
-.stream-panel{position:relative;background:#111;display:flex;align-items:center;justify-content:center;overflow:hidden}
-.stream-panel img{width:100%;height:100%;object-fit:contain}
-.stream-overlay{position:absolute;bottom:0;left:0;right:0;padding:20px;background:linear-gradient(transparent,rgba(0,0,0,0.8));display:flex;align-items:flex-end;justify-content:space-between}
-.motion-bar{width:200px;height:8px;background:#333;border-radius:4px;overflow:hidden}
-.motion-fill{height:100%;border-radius:4px;transition:width 0.3s,background 0.3s}
-.no-stream{color:#555;font-size:1.2rem;text-transform:uppercase;letter-spacing:3px}
-.side-panel{background:#0a0a0a;border-left:1px solid rgba(255,255,255,0.06);overflow-y:auto;padding:24px;display:flex;flex-direction:column;gap:20px}
-.card{background:#111;border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:20px}
-.card-title{font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#FF6A00;margin-bottom:16px}
-.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.stat-item{text-align:center;padding:12px;background:#0a0a0a;border-radius:12px}
-.stat-value{font-size:1.8rem;font-weight:900;color:#fff}
-.stat-value.orange{color:#FF6A00}
-.stat-value.green{color:#0f0}
-.stat-value.blue{color:#00aaff}
-.stat-label{font-size:0.65rem;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px;margin-top:4px}
-.controls{display:flex;flex-direction:column;gap:12px}
-.btn{padding:12px 20px;border-radius:12px;border:none;font-weight:700;font-size:0.8rem;cursor:pointer;text-transform:uppercase;letter-spacing:1px;transition:all 0.3s;font-family:inherit}
-.btn-primary{background:#FF6A00;color:#fff}
-.btn-primary:hover{background:#FF8533;transform:translateY(-1px)}
-.btn-outline{background:transparent;color:#fff;border:2px solid rgba(255,255,255,0.2)}
-.btn-outline:hover{border-color:#FF6A00;color:#FF6A00}
-.btn-row{display:flex;gap:8px}
-.btn-row .btn{flex:1}
-.slider-group{display:flex;flex-direction:column;gap:8px}
-.slider-label{display:flex;justify-content:space-between;font-size:0.8rem;color:rgba(255,255,255,0.6)}
-.slider-label span:last-child{color:#FF6A00;font-weight:700}
-input[type=range]{-webkit-appearance:none;width:100%;height:6px;background:#333;border-radius:3px;outline:none}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;background:#FF6A00;border-radius:50%;cursor:pointer}
-.events{max-height:200px;overflow-y:auto}
-.event{padding:10px 14px;margin:6px 0;background:#0a0a0a;border-radius:10px;border-left:3px solid #FF6A00;font-size:0.8rem}
-.event .time{color:rgba(255,255,255,0.4);font-size:0.7rem}
-.event .type{color:#fff;font-weight:600}
-.event .level{color:#FF6A00}
-.clips-gallery{display:flex;flex-direction:column;gap:10px}
-.clip-item{background:#0a0a0a;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,0.06);transition:all 0.3s}
-.clip-item:hover{border-color:rgba(255,106,0,0.3)}
-.clip-video{width:100%;aspect-ratio:16/9;background:#000;display:block;cursor:pointer}
-.clip-info{padding:10px 14px;display:flex;justify-content:space-between;align-items:center}
-.clip-meta{font-size:0.75rem;color:rgba(255,255,255,0.5)}
-.clip-meta strong{color:#fff}
-.clip-delete{background:none;border:none;color:#666;cursor:pointer;font-size:1rem;padding:4px 8px;border-radius:6px;transition:all 0.2s}
-.clip-delete:hover{color:#f00;background:rgba(255,0,0,0.1)}
-.snapshots-gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.snap-item{position:relative;border-radius:8px;overflow:hidden;transition:transform 0.3s}
-.snap-item:hover{transform:scale(1.05)}
-.snap-item img{width:100%;aspect-ratio:16/10;object-fit:cover;display:block}
-.snap-delete{position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.7);color:#666;border:none;border-radius:4px;cursor:pointer;font-size:0.7rem;padding:2px 6px;opacity:0;transition:all 0.2s}
-.snap-item:hover .snap-delete{opacity:1}
-.snap-delete:hover{color:#f00}
-.rec-indicator{display:none;padding:12px;background:rgba(255,0,0,0.1);border:1px solid rgba(255,0,0,0.3);border-radius:12px;text-align:center}
-.rec-indicator.active{display:block}
-.rec-indicator .rec-dot{display:inline-block;width:10px;height:10px;background:#f00;border-radius:50%;animation:pulse 1s infinite;margin-right:8px}
-.rec-indicator .rec-text{font-size:0.85rem;font-weight:700;color:#f00}
-.rec-indicator .rec-timer{font-size:0.75rem;color:rgba(255,255,255,0.5);margin-top:4px}
-.video-modal{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.9);align-items:center;justify-content:center;padding:40px}
-.video-modal.active{display:flex}
-.video-modal video{max-width:90%;max-height:90%;border-radius:16px;box-shadow:0 0 60px rgba(255,106,0,0.2)}
-.video-modal-close{position:absolute;top:20px;right:20px;background:rgba(255,255,255,0.1);border:none;color:#fff;font-size:1.5rem;cursor:pointer;width:48px;height:48px;border-radius:50%;transition:all 0.3s}
-.video-modal-close:hover{background:rgba(255,106,0,0.3)}
-.detection-card{background:#111;border:1px solid rgba(255,165,0,0.2);border-radius:16px;padding:20px}
-.det-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.det-item{background:#0a0a0a;border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center}
-.det-class{color:#FF6A00;font-weight:700;font-size:0.85rem}
-.det-count{color:#fff;font-weight:900;font-size:1.2rem}
-.det-empty{color:rgba(255,255,255,0.3);font-size:0.8rem;text-align:center;padding:12px}
-@media(max-width:900px){.main{grid-template-columns:1fr;grid-template-rows:50vh auto}.side-panel{border-left:none;border-top:1px solid rgba(255,255,255,0.06)}}
-</style>
-</head>
-<body>
-<div class="header">
-  <div class="logo">⚡ Huragan Vision</div>
-  <div class="header-status">
-    <span class="status-dot" id="statusDot"></span>
-    <span class="status-text" id="statusText">Connecting...</span>
-  </div>
-</div>
-<div class="main">
-  <div class="stream-panel">
-    <img id="stream" src="/stream" alt="Camera" onerror="this.style.display='none';document.getElementById('noStream').style.display='flex'">
-    <div class="no-stream" id="noStream" style="display:none;position:absolute;flex-direction:column;align-items:center;gap:12px">
-      <span style="font-size:3rem">📷</span><span>Camera Offline</span>
-    </div>
-    <div class="stream-overlay">
-      <div>
-        <div style="font-size:0.7rem;color:rgba(255,255,255,0.5);margin-bottom:6px">MOTION LEVEL</div>
-        <div class="motion-bar"><div class="motion-fill" id="motionFill"></div></div>
-      </div>
-      <div style="font-size:0.8rem;font-weight:700" id="motionText">0%</div>
-    </div>
-  </div>
-  <div class="side-panel">
-    <div class="card">
-      <div class="card-title">Live Stats</div>
-      <div class="stat-grid">
-        <div class="stat-item"><div class="stat-value orange" id="fpsVal">0</div><div class="stat-label">FPS</div></div>
-        <div class="stat-item"><div class="stat-value" id="motionVal">0%</div><div class="stat-label">Motion</div></div>
-        <div class="stat-item"><div class="stat-value green" id="eventsVal">0</div><div class="stat-label">Events</div></div>
-        <div class="stat-item"><div class="stat-value blue" id="objectsVal">0</div><div class="stat-label">Objects</div></div>
-      </div>
-    </div>
-    <div class="detection-card">
-      <div class="card-title">🔍 Detected Objects</div>
-      <div class="det-grid" id="detGrid">
-        <div class="det-empty">No objects detected</div>
-      </div>
-    </div>
-    <div class="rec-indicator" id="recIndicator">
-      <span class="rec-dot"></span><span class="rec-text">RECORDING</span>
-      <div class="rec-timer" id="recTimer">15.0s remaining</div>
-    </div>
-    <div class="card">
-      <div class="card-title">Controls</div>
-      <div class="controls">
-        <div class="btn-row">
-          <button class="btn btn-primary" onclick="manualRecord()">🎬 Record 15s</button>
-          <button class="btn btn-outline" onclick="takeSnapshot()">📸 Snapshot</button>
-        </div>
-        <div class="btn-row">
-          <button class="btn btn-outline" id="toggleBtn" onclick="toggleDetection()">⏸ Pause</button>
-        </div>
-        <div class="slider-group">
-          <div class="slider-label"><span>Sensitivity</span><span id="sensVal">50%</span></div>
-          <input type="range" min="0" max="100" value="50" id="sensSlider" oninput="setSensitivity(this.value)">
-        </div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title">Video Clips</div>
-      <div class="clips-gallery" id="clipsGallery">
-        <div style="color:rgba(255,255,255,0.3);font-size:0.8rem">No clips yet</div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title">Recent Events</div>
-      <div class="events" id="eventsList">
-        <div style="color:rgba(255,255,255,0.3);font-size:0.8rem">No events yet</div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title">Snapshots</div>
-      <div class="snapshots-gallery" id="snapGallery">
-        <div style="color:rgba(255,255,255,0.3);font-size:0.8rem;grid-column:1/-1">No snapshots yet</div>
-      </div>
-    </div>
-  </div>
-</div>
-<div class="video-modal" id="videoModal">
-  <button class="video-modal-close" onclick="closeVideoModal()">✕</button>
-  <video id="modalVideo" controls autoplay></video>
-</div>
-<script>
-async function updateStatus(){
-  try{
-    const r=await fetch('/api/status');const d=await r.json();
-    const dot=document.getElementById('statusDot');const txt=document.getElementById('statusText');
-    if(d.status==='recording'){dot.className='status-dot rec';txt.textContent='● RECORDING';}
-    else if(d.status==='monitoring'){dot.className='status-dot on';txt.textContent='○ MONITORING';}
-    else{dot.className='status-dot off';txt.textContent='⏸ PAUSED';}
-    document.getElementById('fpsVal').textContent=d.fps;
-    document.getElementById('motionVal').textContent=d.motion_level+'%';
-    document.getElementById('eventsVal').textContent=d.events_count;
-    const totalObj=d.detection_labels?d.detection_labels.reduce((s,o)=>s+o.count,0):0;
-    document.getElementById('objectsVal').textContent=totalObj;
-    document.getElementById('sensSlider').value=d.sensitivity;
-    document.getElementById('sensVal').textContent=d.sensitivity+'%';
-    document.getElementById('toggleBtn').textContent=d.enabled?'⏸ Pause':'▶ Resume';
-    document.getElementById('toggleBtn').className=d.enabled?'btn btn-outline':'btn btn-primary';
-    const fill=document.getElementById('motionFill');
-    fill.style.width=d.motion_level+'%';
-    fill.style.background=d.motion_level<30?'#0f0':d.motion_level<70?'#FF6A00':'#f00';
-    document.getElementById('motionText').textContent=d.motion_level+'%';
-    const recInd=document.getElementById('recIndicator');
-    if(d.is_recording){recInd.classList.add('active');document.getElementById('recTimer').textContent=d.recording_remaining.toFixed(1)+'s remaining';}
-    else{recInd.classList.remove('active');}
-    // Detection labels
-    const dg=document.getElementById('detGrid');
-    if(d.detection_labels&&d.detection_labels.length){dg.innerHTML=d.detection_labels.map(o=>'<div class="det-item"><span class="det-class">'+o.class+'</span><span class="det-count">'+o.count+'</span></div>').join('');}
-    else{dg.innerHTML='<div class="det-empty">No objects detected</div>';}
-    const el=document.getElementById('eventsList');
-    if(d.events.length){el.innerHTML=d.events.slice(-10).reverse().map(e=>'<div class="event"><div class="time">'+new Date(e.time).toLocaleTimeString()+'</div><div class="type">'+e.type.replace(/_/g,' ')+'</div>'+(e.motion_level?'<div class="level">Level: '+e.motion_level+'%</div>':'')+(e.duration?'<div class="level">Duration: '+e.duration+'s</div>':'')+'</div>').join('');}
-    else{el.innerHTML='<div style="color:rgba(255,255,255,0.3);font-size:0.8rem">No events yet</div>';}
-    const cg=document.getElementById('clipsGallery');
-    if(d.clips&&d.clips.length){cg.innerHTML=d.clips.slice(-8).reverse().map(c=>'<div class="clip-item"><video class="clip-video" src="/motion/clips/'+c.file+'" preload="metadata" onclick="openVideoModal(\'/motion/clips/'+c.file+'\')"></video><div class="clip-info"><div class="clip-meta"><strong>'+new Date(c.time).toLocaleTimeString()+'</strong> · '+c.duration+'s'+(c.motion_level?' · Level: '+c.motion_level+'%':'')+'</div><button class="clip-delete" onclick="deleteClip(\''+c.file+'\')">🗑</button></div></div>').join('');}
-    else{cg.innerHTML='<div style="color:rgba(255,255,255,0.3);font-size:0.8rem">No clips yet</div>';}
-    const sg=document.getElementById('snapGallery');
-    if(d.snapshots&&d.snapshots.length){sg.innerHTML=d.snapshots.slice(-6).reverse().map(s=>'<div class="snap-item"><img src="/motion/snapshots/'+s.file+'" title="'+s.time+'"><button class="snap-delete" onclick="deleteSnapshot(\''+s.file+'\')">✕</button></div>').join('');}
-    else{sg.innerHTML='<div style="color:rgba(255,255,255,0.3);font-size:0.8rem;grid-column:1/-1">No snapshots yet</div>';}
-  }catch(e){}
-}
-async function toggleDetection(){await fetch('/api/toggle',{method:'POST'});updateStatus();}
-async function setSensitivity(v){document.getElementById('sensVal').textContent=v+'%';await fetch('/api/sensitivity',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({value:+v})});}
-async function takeSnapshot(){await fetch('/api/snapshot',{method:'POST'});updateStatus();}
-async function manualRecord(){await fetch('/api/record',{method:'POST'});updateStatus();}
-async function deleteClip(f){if(confirm('Delete this clip?')){await fetch('/api/delete/clip',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({file:f})});updateStatus();}}
-async function deleteSnapshot(f){await fetch('/api/delete/snapshot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({file:f})});updateStatus();}
-function openVideoModal(src){document.getElementById('modalVideo').src=src;document.getElementById('videoModal').classList.add('active');}
-function closeVideoModal(){const v=document.getElementById('modalVideo');v.pause();v.src='';document.getElementById('videoModal').classList.remove('active');}
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeVideoModal();});
-document.getElementById('videoModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeVideoModal();});
-setInterval(updateStatus,1000);updateStatus();
-</script>
-</body>
-</html>"""
+
+# ===== Dashboard HTML (loaded from file) =====
+DASHBOARD_HTML_PATH = "/home/server/public/dashboard.html"
+
 
 
 # ===== Camera Capture =====

@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Huragan Vision</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #050505;
+  --surface: #0d0d0d;
+  --surface2: #141414;
+  --border: rgba(255,255,255,0.06);
+  --text: #f0f0f0;
+  --text2: rgba(255,255,255,0.45);
+  --accent: #FF6A00;
+  --accent2: #FF8533;
+  --green: #22c55e;
+  --red: #ef4444;
+  --blue: #3b82f6;
+  --radius: 14px;
+  --radius-sm: 10px;
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent }
+body { background:var(--bg); color:var(--text); font-family:'Inter',system-ui,sans-serif; overflow-x:hidden; min-height:100vh; min-height:100dvh }
+
+/* Header */
+.hdr { position:sticky; top:0; z-index:100; background:rgba(5,5,5,0.85); backdrop-filter:blur(24px) saturate(1.4); border-bottom:1px solid var(--border); padding:14px 20px; display:flex; align-items:center; justify-content:space-between }
+.hdr-logo { font-size:1rem; font-weight:800; color:var(--accent); letter-spacing:2.5px; text-transform:uppercase }
+.hdr-right { display:flex; align-items:center; gap:10px }
+.hdr-dot { width:8px; height:8px; border-radius:50% }
+.hdr-dot.on { background:var(--green); box-shadow:0 0 8px var(--green) }
+.hdr-dot.rec { background:var(--red); box-shadow:0 0 8px var(--red); animation:blink 1s infinite }
+.hdr-dot.off { background:#555 }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.25} }
+.hdr-status { font-size:.7rem; font-weight:600; text-transform:uppercase; letter-spacing:1px; color:var(--text2) }
+
+/* Stream */
+.stream-wrap { position:relative; width:100%; aspect-ratio:16/9; background:#000; overflow:hidden }
+.stream-wrap img { width:100%; height:100%; object-fit:contain; display:block }
+.stream-off { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; color:#444; font-size:.85rem; letter-spacing:2px; text-transform:uppercase }
+.stream-off svg { width:48px; height:48px; opacity:.3 }
+.stream-hud { position:absolute; bottom:0; left:0; right:0; padding:16px 20px; background:linear-gradient(transparent,rgba(0,0,0,.75)); display:flex; align-items:flex-end; justify-content:space-between }
+.motion-bar-wrap { flex:1; max-width:180px }
+.motion-bar-label { font-size:.6rem; color:var(--text2); margin-bottom:4px; text-transform:uppercase; letter-spacing:1px }
+.motion-bar { height:6px; background:#222; border-radius:3px; overflow:hidden }
+.motion-bar-fill { height:100%; border-radius:3px; transition:width .4s, background .4s }
+.motion-pct { font-size:.85rem; font-weight:700; margin-left:12px; min-width:36px; text-align:right }
+
+/* Main content */
+.content { padding:16px; display:flex; flex-direction:column; gap:14px; max-width:600px; margin:0 auto }
+
+/* Cards */
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px }
+.card-title { font-size:.65rem; font-weight:700; text-transform:uppercase; letter-spacing:2px; color:var(--accent); margin-bottom:14px }
+
+/* Stats grid */
+.stats { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:8px }
+.stat { background:var(--surface2); border-radius:var(--radius-sm); padding:12px 8px; text-align:center }
+.stat-val { font-size:1.4rem; font-weight:800; line-height:1 }
+.stat-val.accent { color:var(--accent) }
+.stat-val.green { color:var(--green) }
+.stat-val.blue { color:var(--blue) }
+.stat-lbl { font-size:.55rem; color:var(--text2); text-transform:uppercase; letter-spacing:.8px; margin-top:5px }
+
+/* Detection */
+.det-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px }
+.det-item { background:var(--surface2); border-radius:var(--radius-sm); padding:10px 12px; display:flex; justify-content:space-between; align-items:center }
+.det-class { font-size:.8rem; font-weight:600; color:var(--accent) }
+.det-count { font-size:1.1rem; font-weight:800 }
+.det-empty { color:var(--text2); font-size:.75rem; text-align:center; padding:10px; grid-column:1/-1 }
+
+/* Rec indicator */
+.rec-bar { display:none; padding:10px 16px; background:rgba(239,68,68,.08); border:1px solid rgba(239,68,68,.2); border-radius:var(--radius); text-align:center }
+.rec-bar.active { display:flex; align-items:center; justify-content:center; gap:8px }
+.rec-dot-sm { width:8px; height:8px; background:var(--red); border-radius:50%; animation:blink 1s infinite }
+.rec-text { font-size:.8rem; font-weight:700; color:var(--red) }
+.rec-timer { font-size:.7rem; color:var(--text2) }
+
+/* Controls */
+.ctrls { display:flex; flex-direction:column; gap:10px }
+.btn-row { display:flex; gap:8px }
+.btn { flex:1; padding:12px 14px; border-radius:var(--radius-sm); border:none; font-weight:700; font-size:.75rem; cursor:pointer; text-transform:uppercase; letter-spacing:.8px; transition:all .2s; font-family:inherit }
+.btn-primary { background:var(--accent); color:#fff }
+.btn-primary:hover { background:var(--accent2) }
+.btn-outline { background:transparent; color:#fff; border:1.5px solid rgba(255,255,255,.15) }
+.btn-outline:hover { border-color:var(--accent); color:var(--accent) }
+.slider-wrap { display:flex; flex-direction:column; gap:6px }
+.slider-label { display:flex; justify-content:space-between; font-size:.75rem; color:var(--text2) }
+.slider-label span:last-child { color:var(--accent); font-weight:700 }
+input[type=range] { -webkit-appearance:none; width:100%; height:5px; background:#222; border-radius:3px; outline:none }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:16px; height:16px; background:var(--accent); border-radius:50%; cursor:pointer }
+
+/* Clips */
+.clips { display:flex; flex-direction:column; gap:8px }
+.clip { background:var(--surface2); border-radius:var(--radius-sm); overflow:hidden; border:1px solid var(--border); transition:border-color .2s }
+.clip:hover { border-color:rgba(255,106,0,.25) }
+.clip video { width:100%; aspect-ratio:16/9; background:#000; display:block; cursor:pointer }
+.clip-info { padding:8px 12px; display:flex; justify-content:space-between; align-items:center }
+.clip-meta { font-size:.7rem; color:var(--text2) }
+.clip-meta strong { color:var(--text) }
+.clip-del { background:none; border:none; color:#555; cursor:pointer; font-size:.9rem; padding:4px 6px; border-radius:6px; transition:all .2s }
+.clip-del:hover { color:var(--red); background:rgba(239,68,68,.1) }
+
+/* Events */
+.evs { max-height:180px; overflow-y:auto }
+.ev { padding:8px 12px; margin:4px 0; background:var(--surface2); border-radius:8px; border-left:3px solid var(--accent); font-size:.75rem }
+.ev-time { color:var(--text2); font-size:.65rem }
+.ev-type { color:var(--text); font-weight:600 }
+.ev-level { color:var(--accent) }
+
+/* Snapshots */
+.snaps { display:grid; grid-template-columns:repeat(3,1fr); gap:6px }
+.snap { position:relative; border-radius:8px; overflow:hidden }
+.snap img { width:100%; aspect-ratio:16/10; object-fit:cover; display:block }
+.snap-del { position:absolute; top:3px; right:3px; background:rgba(0,0,0,.65); color:#666; border:none; border-radius:4px; cursor:pointer; font-size:.6rem; padding:2px 5px; opacity:0; transition:opacity .2s }
+.snap:hover .snap-del { opacity:1 }
+.snap-del:hover { color:var(--red) }
+
+/* Modal */
+.modal { display:none; position:fixed; inset:0; z-index:200; background:rgba(0,0,0,.92); align-items:center; justify-content:center; padding:20px }
+.modal.active { display:flex }
+.modal video { max-width:100%; max-height:90vh; border-radius:var(--radius) }
+.modal-close { position:absolute; top:16px; right:16px; background:rgba(255,255,255,.08); border:none; color:#fff; font-size:1.3rem; cursor:pointer; width:40px; height:40px; border-radius:50%; transition:background .2s }
+.modal-close:hover { background:rgba(255,106,0,.25) }
+
+/* Desktop: side-by-side */
+@media(min-width:960px){
+  .layout{display:grid;grid-template-columns:1fr 400px;height:100vh;height:100dvh}
+  .stream-wrap{aspect-ratio:unset;height:100%}
+  .content{max-width:none;padding:16px;overflow-y:auto;height:100%}
+}
+</style>
+</head>
+<body>
+<div class="layout">
+  <div class="stream-wrap">
+    <img id="stream" src="/stream" alt="Camera" onerror="this.style.display='none';document.getElementById('noStream').style.display='flex'">
+    <div class="stream-off" id="noStream" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15.2 10.7l4.8-4.8M2 2l20 20M10.5 15.5l-4.8 4.8M2 8.5l4.8 4.8M21.5 15.5l-4.8-4.8"/><circle cx="12" cy="12" r="10"/></svg>
+      <span>Камера офлайн</span>
+    </div>
+    <div class="stream-hud">
+      <div class="motion-bar-wrap">
+        <div class="motion-bar-label">Рух</div>
+        <div class="motion-bar"><div class="motion-bar-fill" id="motionFill"></div></div>
+      </div>
+      <div class="motion-pct" id="motionPct">0%</div>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="card">
+      <div class="card-title">📊 Статистика</div>
+      <div class="stats">
+        <div class="stat"><div class="stat-val accent" id="fpsVal">0</div><div class="stat-lbl">FPS</div></div>
+        <div class="stat"><div class="stat-val" id="motionVal">0%</div><div class="stat-lbl">Рух</div></div>
+        <div class="stat"><div class="stat-val green" id="eventsVal">0</div><div class="stat-lbl">Події</div></div>
+        <div class="stat"><div class="stat-val blue" id="objectsVal">0</div><div class="stat-lbl">Об'єкти</div></div>
+      </div>
+    </div>
+
+    <div class="card" style="border-color:rgba(255,165,0,.15)">
+      <div class="card-title">🔍 Розпізнані об'єкти</div>
+      <div class="det-grid" id="detGrid">
+        <div class="det-empty">Об'єкти не виявлено</div>
+      </div>
+    </div>
+
+    <div class="rec-bar" id="recBar">
+      <span class="rec-dot-sm"></span>
+      <span class="rec-text">ЗАПИС</span>
+      <span class="rec-timer" id="recTimer">15.0с</span>
+    </div>
+
+    <div class="card">
+      <div class="card-title">⚙️ Керування</div>
+      <div class="ctrls">
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="manualRecord()">🎬 Запис 15с</button>
+          <button class="btn btn-outline" onclick="takeSnapshot()">📸 Скріншот</button>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-outline" id="toggleBtn" onclick="toggleDetection()">⏸ Пауза</button>
+        </div>
+        <div class="slider-wrap">
+          <div class="slider-label"><span>Чутливість</span><span id="sensVal">50%</span></div>
+          <input type="range" min="0" max="100" value="50" id="sensSlider" oninput="setSensitivity(this.value)">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🎬 Відеокліпи</div>
+      <div class="clips" id="clipsGallery">
+        <div style="color:var(--text2);font-size:.75rem;text-align:center;padding:8px">Кліпів ще немає</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📋 Події</div>
+      <div class="evs" id="eventsList">
+        <div style="color:var(--text2);font-size:.75rem;text-align:center;padding:8px">Подій ще немає</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📸 Скріншоти</div>
+      <div class="snaps" id="snapGallery">
+        <div style="color:var(--text2);font-size:.75rem;text-align:center;padding:8px;grid-column:1/-1">Скріншотів ще немає</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="videoModal">
+  <button class="modal-close" onclick="closeVideoModal()">✕</button>
+  <video id="modalVideo" controls autoplay playsinline></video>
+</div>
+
+<script>
+async function updateStatus(){
+  try{
+    const r=await fetch('/api/status');const d=await r.json();
+    const dot=document.getElementById('statusDot');
+    const txt=document.getElementById('statusText');
+    if(d.status==='recording'){dot.className='hdr-dot rec';txt.textContent='● ЗАПИС';}
+    else if(d.status==='monitoring'){dot.className='hdr-dot on';txt.textContent='● МОНИТОРИНГ';}
+    else{dot.className='hdr-dot off';txt.textContent='⏸ ПАУЗА';}
+    document.getElementById('fpsVal').textContent=d.fps;
+    document.getElementById('motionVal').textContent=d.motion_level+'%';
+    document.getElementById('eventsVal').textContent=d.events_count;
+    const totalObj=d.detection_labels?d.detection_labels.reduce((s,o)=>s+o.count,0):0;
+    document.getElementById('objectsVal').textContent=totalObj;
+    document.getElementById('sensSlider').value=d.sensitivity;
+    document.getElementById('sensVal').textContent=d.sensitivity+'%';
+    document.getElementById('toggleBtn').textContent=d.enabled?'⏸ Пауза':'▶ Продовжити';
+    document.getElementById('toggleBtn').className=d.enabled?'btn btn-outline':'btn btn-primary';
+    const fill=document.getElementById('motionFill');
+    fill.style.width=d.motion_level+'%';
+    fill.style.background=d.motion_level<30?'var(--green)':d.motion_level<70?'var(--accent)':'var(--red)';
+    document.getElementById('motionPct').textContent=d.motion_level+'%';
+    const rb=document.getElementById('recBar');
+    if(d.is_recording){rb.classList.add('active');document.getElementById('recTimer').textContent=d.recording_remaining.toFixed(1)+'с';}
+    else{rb.classList.remove('active');}
+    const dg=document.getElementById('detGrid');
+    if(d.detection_labels&&d.detection_labels.length){dg.innerHTML=d.detection_labels.map(o=>'<div class="det-item"><span class="det-class">'+o.class+'</span><span class="det-count">'+o.count+'</span></div>').join('');}
+    else{dg.innerHTML='<div class="det-empty">Об\'єкти не виявлено</div>';}
+    const el=document.getElementById('eventsList');
+    if(d.events.length){el.innerHTML=d.events.slice(-10).reverse().map(e=>'<div class="ev"><div class="ev-time">'+new Date(e.time).toLocaleTimeString()+'</div><div class="ev-type">'+e.type.replace(/_/g,' ')+'</div>'+(e.motion_level?'<div class="ev-level">Рівень: '+e.motion_level+'%</div>':'')+(e.duration?'<div class="ev-level">Тривалість: '+e.duration+'с</div>':'')+'</div>').join('');}
+    else{el.innerHTML='<div style="color:var(--text2);font-size:.75rem;text-align:center;padding:8px">Подій ще немає</div>';}
+    const cg=document.getElementById('clipsGallery');
+    if(d.clips&&d.clips.length){cg.innerHTML=d.clips.slice(-8).reverse().map(c=>'<div class="clip"><video class="clip-video" src="/motion/clips/'+c.file+'" preload="metadata" onclick="openVideoModal(\'/motion/clips/'+c.file+'\')" playsinline></video><div class="clip-info"><div class="clip-meta"><strong>'+new Date(c.time).toLocaleTimeString()+'</strong> · '+c.duration+'с'+(c.motion_level?' · '+c.motion_level+'%':'')+'</div><button class="clip-del" onclick="deleteClip(\''+c.file+'\')">🗑</button></div></div>').join('');}
+    else{cg.innerHTML='<div style="color:var(--text2);font-size:.75rem;text-align:center;padding:8px">Кліпів ще немає</div>';}
+    const sg=document.getElementById('snapGallery');
+    if(d.snapshots&&d.snapshots.length){sg.innerHTML=d.snapshots.slice(-6).reverse().map(s=>'<div class="snap"><img src="/motion/snapshots/'+s.file+'" loading="lazy"><button class="snap-del" onclick="deleteSnapshot(\''+s.file+'\')">✕</button></div>').join('');}
+    else{sg.innerHTML='<div style="color:var(--text2);font-size:.75rem;text-align:center;padding:8px;grid-column:1/-1">Скріншотів ще немає</div>';}
+  }catch(e){}
+}
+async function toggleDetection(){await fetch('/api/toggle',{method:'POST'});updateStatus();}
+async function setSensitivity(v){document.getElementById('sensVal').textContent=v+'%';await fetch('/api/sensitivity',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({value:+v})});}
+async function takeSnapshot(){await fetch('/api/snapshot',{method:'POST'});updateStatus();}
+async function manualRecord(){await fetch('/api/record',{method:'POST'});updateStatus();}
+async function deleteClip(f){if(confirm('Видалити кліп?')){await fetch('/api/delete/clip',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({file:f})});updateStatus();}}
+async function deleteSnapshot(f){await fetch('/api/delete/snapshot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({file:f})});updateStatus();}
+function openVideoModal(src){document.getElementById('modalVideo').src=src;document.getElementById('videoModal').classList.add('active');}
+function closeVideoModal(){const v=document.getElementById('modalVideo');v.pause();v.src='';document.getElementById('videoModal').classList.remove('active');}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeVideoModal();});
+document.getElementById('videoModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeVideoModal();});
+setInterval(updateStatus,1000);updateStatus();
+</script>
+</body>
+</html>
